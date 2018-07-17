@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['materialloader',['materialLoader',['../struct_ogre__gl_t_f__adapter_1_1impl.html#a9a002bf5535323a633bfc4157f09e96d',1,'Ogre_glTF_adapter::impl']]],
-  ['model',['model',['../struct_ogre__gl_t_f__adapter_1_1impl.html#af0ab307ee720800508ae00742bb87b5a',1,'Ogre_glTF_adapter::impl']]],
-  ['modelconverter',['modelConverter',['../struct_ogre__gl_t_f__adapter_1_1impl.html#a33c81da556dc87ecded03333b4cbf779',1,'Ogre_glTF_adapter::impl']]]
+  ['impl',['impl',['../structloader_adapter_1_1impl.html',1,'Ogre_glTF::loaderAdapter::impl'],['../structloader_adapter_1_1impl.html#aebc596a65a3b61a03f10e113b2e05e02',1,'Ogre_glTF::loaderAdapter::impl::impl()']]],
+  ['isok',['isOk',['../class_ogre__gl_t_f_1_1loader_adapter.html#a6b2db7f7f8f4a6b6f1d46a0843f40424',1,'Ogre_glTF::loaderAdapter']]]
 ];

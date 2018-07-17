@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['size',['size',['../class_ogre__gl_t_f__geometry_buffer.html#abcebe5c5fe5c9d25f5b4377490fbef0f',1,'Ogre_glTF_geometryBuffer']]]
+  ['impl',['impl',['../structloader_adapter_1_1impl.html#aebc596a65a3b61a03f10e113b2e05e02',1,'loaderAdapter::impl']]],
+  ['isok',['isOk',['../class_ogre__gl_t_f_1_1loader_adapter.html#a6b2db7f7f8f4a6b6f1d46a0843f40424',1,'Ogre_glTF::loaderAdapter']]]
 ];

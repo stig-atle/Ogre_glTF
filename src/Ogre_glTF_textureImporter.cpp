@@ -5,8 +5,9 @@
 #include <OgreTexture.h>
 #include <OgreImage.h>
 #include <OgreHardwarePixelBuffer.h>
-#include <OgreRenderTexture.h>
 #include <OgreColourValue.h>
+
+using namespace Ogre_glTF;
 
 //TODO pack the loaded textures in texture arrays (TEX_TYPE_2D_ARRAY) to optimize the way textures are binded to the slots of an HlmsPbsDatablock.
 //TODO rethink the oder of operations while loading texture. Some of them need to be interpreted differently for they usage (MetalRoughMap needs to be separated in two greyscale map, NormalMap need SNORM reformating). Knowing what the material is doing with them will help avoid uncessesary resource usage and load time.
@@ -14,17 +15,17 @@
 //TODO planned refactoring : Loading of texture via OgreImage needs to be put into it's own method
 //TODO investicate if HardwarePixelBuffer is going to be deprecated. Why is it in the Ogre::v1 namespace? What will happen in Ogre 2.2's "texture refactor"?
 
-size_t Ogre_glTF_textureImporter::id{ 0 };
-void Ogre_glTF_textureImporter::loadTexture(const tinygltf::Texture& texture)
+size_t textureImporter::id { 0 };
+void textureImporter::loadTexture(const tinygltf::Texture& texture)
 {
 	auto textureManager = Ogre::TextureManager::getSingletonPtr();
 	const auto& image   = model.images[texture.source];
 	const auto name		= "glTF_texture_" + image.name + std::to_string(id) + std::to_string(texture.source);
 
 	auto OgreTexture = textureManager->getByName(name);
-	if (OgreTexture)
+	if(OgreTexture)
 	{
-		OgreLog("Texture " + name + " already loaded in Ogre::TextureManager");
+		//OgreLog("Texture " + name + " already loaded in Ogre::TextureManager");
 		return;
 	}
 
@@ -80,13 +81,13 @@ void Ogre_glTF_textureImporter::loadTexture(const tinygltf::Texture& texture)
 	loadedTextures.insert({ texture.source, OgreTexture });
 }
 
-Ogre_glTF_textureImporter::Ogre_glTF_textureImporter(tinygltf::Model& input) :
- model{ input }
+textureImporter::textureImporter(tinygltf::Model& input) :
+ model { input }
 {
 	id++;
 }
 
-void Ogre_glTF_textureImporter::loadTextures()
+void textureImporter::loadTextures()
 {
 	for(const auto& texture : model.textures)
 	{
@@ -94,7 +95,7 @@ void Ogre_glTF_textureImporter::loadTextures()
 	}
 }
 
-Ogre::TexturePtr Ogre_glTF_textureImporter::getTexture(int glTFTextureSourceID)
+Ogre::TexturePtr textureImporter::getTexture(int glTFTextureSourceID)
 {
 	auto texture = loadedTextures.find(glTFTextureSourceID);
 	if(texture == std::end(loadedTextures)) return {};
@@ -102,7 +103,7 @@ Ogre::TexturePtr Ogre_glTF_textureImporter::getTexture(int glTFTextureSourceID)
 	return texture->second;
 }
 
-Ogre::TexturePtr Ogre_glTF_textureImporter::generateGreyScaleFromChannel(int gltfTextureSourceID, int channel)
+Ogre::TexturePtr textureImporter::generateGreyScaleFromChannel(int gltfTextureSourceID, int channel)
 {
 	auto textureManager = Ogre::TextureManager::getSingletonPtr();
 	const auto& image   = model.images[gltfTextureSourceID];
@@ -113,7 +114,7 @@ Ogre::TexturePtr Ogre_glTF_textureImporter::generateGreyScaleFromChannel(int glt
 	auto texture = textureManager->getByName(name);
 	if(texture)
 	{
-		OgreLog("texture " + name + "Already loaded in Ogre::TextureManager");
+		//OgreLog("texture " + name + "Already loaded in Ogre::TextureManager");
 		return texture;
 	}
 
@@ -123,14 +124,14 @@ Ogre::TexturePtr Ogre_glTF_textureImporter::generateGreyScaleFromChannel(int glt
 
 	//Greyscale the image by putting all channel to the same value, ignoring alpha
 	std::vector<Ogre::uchar> imageData(image.image.size());
-	const auto pixelCount{ imageData.size() / image.component };
-	for(size_t i{ 0 }; i < pixelCount; i++) //for each pixel
+	const auto pixelCount { imageData.size() / image.component };
+	for(size_t i { 0 }; i < pixelCount; i++) //for each pixel
 	{
 		//Get the channel that has the value
 		Ogre::uchar grey = image.image[(i * image.component) + channel];
 
 		//Turn pixel at this specific shade of grey
-		for(size_t c{ 0 }; c < 3; c++)
+		for(size_t c { 0 }; c < 3; c++)
 			imageData[i * image.component + c] = grey;
 
 		//If there's an alpha channel, put it to 1.0f (255)
@@ -180,7 +181,7 @@ Ogre::TexturePtr Ogre_glTF_textureImporter::generateGreyScaleFromChannel(int glt
 	return OgreTexture;
 }
 
-Ogre::TexturePtr Ogre_glTF_textureImporter::getNormalSNORM(int gltfTextureSourceID)
+Ogre::TexturePtr textureImporter::getNormalSNORM(int gltfTextureSourceID)
 {
 	auto textureManager = Ogre::TextureManager::getSingletonPtr();
 	const auto& image   = model.images[gltfTextureSourceID];
@@ -189,7 +190,7 @@ Ogre::TexturePtr Ogre_glTF_textureImporter::getNormalSNORM(int gltfTextureSource
 	auto texture = textureManager->getByName(name);
 	if(texture)
 	{
-		OgreLog("texture " + name + "Already loaded in Ogre::TextureManager");
+		//OgreLog("texture " + name + "Already loaded in Ogre::TextureManager");
 		return texture;
 	}
 
@@ -215,7 +216,6 @@ Ogre::TexturePtr Ogre_glTF_textureImporter::getNormalSNORM(int gltfTextureSource
 		throw std::runtime_error("Can get " + name + "pixel format");
 	}();
 
-
 	Ogre::TexturePtr OgreTexture = textureManager->createManual(name,
 																Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
 																Ogre::TextureType::TEX_TYPE_2D_ARRAY,
@@ -230,8 +230,8 @@ Ogre::TexturePtr Ogre_glTF_textureImporter::getNormalSNORM(int gltfTextureSource
 		{ 0, 0, unsigned(image.width), unsigned(image.height) }, //PixelBox that take the whole image
 		Ogre::v1::HardwareBuffer::LockOptions::HBL_NORMAL);
 	//This loop convert BGR to RGB image data while also putting the value in the SNORM range [-1.0; +1.0]
-	for(size_t y{ 0 }; y < image.height; y++)
-		for(size_t x{ 0 }; x < image.width; x++)
+	for(size_t y { 0 }; y < image.height; y++)
+		for(size_t x { 0 }; x < image.width; x++)
 			pixels.setColourAt(Ogre::ColourValue(
 								   2.0f * (float(image.image[image.component * (y * image.width + x) + 2]) / 255.0f) - 1.0f, //R to B
 								   2.0f * (float(image.image[image.component * (y * image.width + x) + 1]) / 255.0f) - 1.0f, //G to G

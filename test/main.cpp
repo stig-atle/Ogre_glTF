@@ -3,12 +3,16 @@
 #include <Compositor/OgreCompositorManager2.h>
 //To use the hlms
 #include <Hlms/Pbs/OgreHlmsPbs.h>
-#include <Hlms/Unlit/OgreHlmsUnlit.h>
 #include <OgreHlms.h>
 //To load Hlms
 #include <OgreArchive.h>
 //To use objects
 #include <OgreItem.h>
+#include <OgreMesh2.h>
+#include <OgreSubMesh2.h>
+#include <Hlms/Pbs/OgreHlmsPbsDatablock.h>
+//To play animations
+#include <Animation/OgreSkeletonAnimation.h>
 //To use smart pointers
 #include <memory>
 
@@ -103,20 +107,23 @@ int main()
 
 	//Create a window and a scene
 	Ogre::NameValuePairList params;
-	params["FSAA"] = "16";
-	auto window	= root->createRenderWindow("glTF test!", 800, 600, false, &params);
-	auto smgr	  = root->createSceneManager(Ogre::ST_GENERIC, 2, Ogre::INSTANCING_CULLING_THREADED);
-	auto camera	= smgr->createCamera("cam");
+	params["FSAA"]	= "16";
+	const auto window = root->createRenderWindow("glTF test!", 800, 600, false, &params);
+
+	auto smgr = root->createSceneManager(Ogre::ST_GENERIC, 2, Ogre::INSTANCING_CULLING_THREADED);
+	smgr->showBoundingBoxes(true);
+	smgr->setDisplaySceneNodes(true);
+	auto camera = smgr->createCamera("cam");
 
 	//Setup rendering pipeline
 	auto compositor			   = root->getCompositorManager2();
 	const char workspaceName[] = "workspace0";
-	compositor->createBasicWorkspaceDef(workspaceName, Ogre::ColourValue{ 0.2f, 0.3f, 0.4f });
+	compositor->createBasicWorkspaceDef(workspaceName, Ogre::ColourValue { 0.2f, 0.3f, 0.4f });
 	auto workspace = compositor->addWorkspace(smgr, window, camera, workspaceName, true);
 
 	declareHlmsLibrary("./");
 
-	//Ogre::ResourceGroupManager::getSingleton().addResourceLocation("./media", "FileSystem");
+	Ogre::ResourceGroupManager::getSingleton().addResourceLocation("gltfFiles.zip", "Zip");
 	Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups(true);
 
 	Ogre::Item* ObjectItem		= nullptr;
@@ -124,15 +131,19 @@ int main()
 
 	//Ogre::Item* OtherItem;
 	//Initialize the library
-	auto gltf = std::make_unique<Ogre_glTF>();
+	auto gltf = std::make_unique<Ogre_glTF::glTFLoader>();
+
+	Ogre_glTF::loaderAdapter gizmoLoader;
 	try
 	{
-		//auto adapter = gltf->loadFile("from_gltf_export_skinned_cylinder.glb");
-		auto adapter = gltf->loadFile("RiggedSimple.glb");
-		//auto adapter = gltf->loadFile("./damagedHelmet/damagedHelmet.gltf");
-		//auto adapter = gltf->loadFile("./Corset.glb");
-		ObjectItem
-			= adapter.getItem(smgr);
+		//auto adapter = gltf->loadFromFileSystem("from_gltf_export_skinned_cylinder.glb");
+		auto adapter = gltf->loadGlbResource("CesiumMan.glb");
+
+		gizmoLoader = gltf->loadFromFileSystem("gizmo.glb");
+
+		//auto adapter = gltf->loadFromFileSystem("./damagedHelmet/damagedHelmet.gltf");
+		//auto adapter = gltf->loadFromFileSystem("./Corset.glb");
+		ObjectItem = adapter.getItem(smgr);
 		//OtherItem = adapter.getItem(smgr);
 	}
 	catch(std::exception& e)
@@ -143,53 +154,66 @@ int main()
 
 	ObjectNode = smgr->getRootSceneNode()->createChildSceneNode();
 	ObjectNode->attachObject(ObjectItem);
-	//auto OtherNode = smgr->getRootSceneNode()->createChildSceneNode();
-	//OtherNode->attachObject(OtherItem);
-	//OtherNode->setPosition(-2, 0, 0);
-	camera->setNearClipDistance(0.001);
+
+	auto gizmoNode = ObjectNode->createChildSceneNode();
+	gizmoNode->attachObject(gizmoLoader.getItem(smgr));
+
+	gizmoNode->getAttachedObject(0);
+	//auto gizmoItem = dynamic_cast<Ogre::Item*>(gizmoNode->getAttachedObject(0));
+
+	gizmoNode->setScale(1, 1, 1);
+	//ObjectNode->setOrientation(Ogre::Quaternion(Ogre::Degree(-90), Ogre::Vector3::UNIT_X));
+	camera->setNearClipDistance(0.001f);
 	camera->setFarClipDistance(100);
-	//camera->setPosition(Ogre::Vector3::UNIT_SCALE * 0.0625);
-	//camera->lookAt({ 0, 0.03125, 0 });
-	camera->setPosition(Ogre::Vector3::UNIT_SCALE * 5);
-	camera->lookAt({ 0, 0, 0 });
+	camera->setPosition(2.5f, 0, 2.5f);
+	camera->lookAt({ 0, 1, 0 });
 	camera->setAutoAspectRatio(true);
 
 	auto light = smgr->createLight();
 	smgr->getRootSceneNode()->createChildSceneNode()->attachObject(light);
 	light->setType(Ogre::Light::LT_DIRECTIONAL);
-	light->setDirection({ -1, -1, -0.5 });
+	light->setDirection(Ogre::Vector3 { -1, -1, -0.5f });
+	light->setPowerScale(5);
+
+	light = smgr->createLight();
+	smgr->getRootSceneNode()->createChildSceneNode()->attachObject(light);
+	light->setType(Ogre::Light::LT_DIRECTIONAL);
+	light->setDirection(Ogre::Vector3 { +1, +1, +0.5f });
 	light->setPowerScale(5);
 
 	auto skeleton = ObjectItem->getSkeletonInstance();
 
-	Ogre::Bone* bone = nullptr;
+	Ogre::SkeletonAnimation* anim = nullptr;
+	Ogre::Bone* bone			  = nullptr;
+
+	auto plugins = root->getInstalledPlugins();
+
+
 	if(skeleton)
 	{
-		Ogre::LogManager::getSingleton().logMessage("skeleton instance? :O");
-		if(skeleton->getBone(0))
-			bone = skeleton->getBone(0)->getChild(0);
-	}
-	if(bone)
-		skeleton->setManualBone(bone, true);
+		bone				= skeleton->getBone(1);
+		auto& animationList = skeleton->getAnimations();
+		if(!animationList.empty())
+		{
+			const auto name = animationList[0].getName();
+			anim			= skeleton->getAnimation(name);
+		}
 
-	Ogre::LogManager::getSingleton().logMessage("Bone pointer value : " + std::to_string(std::size_t(bone)));
+		if(anim)
+		{
+			anim->setEnabled(true);
+			anim->setLoop(true);
+		}
+	}
+
+	auto last = root->getTimer()->getMilliseconds();
+	auto now  = last;
 	while(!window->isClosed())
 	{
-		for(auto i = 0; i < skeleton->getNumBones(); ++i)
-		{
-			auto a_bone = skeleton->getBone(i);
-			std::stringstream ss;
-			ss << "bone " << i << " position " << a_bone->getPosition() << " orientaiton " << a_bone->getOrientation();
-			Ogre::LogManager::getSingleton().logMessage(ss.str());
-		}
-		if(bone)
-		{
-			bone->setOrientation(bone->getParent()->getOrientation() * Ogre::Quaternion(Ogre::Degree( 45.0f * float(sin((float)root->getTimer()->getMilliseconds() / 1000.0f))), Ogre::Vector3::UNIT_Z));
-			//bone->setPosition({ 0, 2.0f * sin((float)root->getTimer()->getMilliseconds() / 1000.f), 0 });
-		}
+		now = root->getTimer()->getMilliseconds();
+		if(anim) anim->addTime(float(now - last) / 1000.0f);
+		last = now;
 
-		//ObjectNode->setOrientation(Ogre::Quaternion(Ogre::Degree(float(root->getTimer()->getMilliseconds()) / 10.0f), Ogre::Vector3::NEGATIVE_UNIT_Y));
-		//OtherNode->setOrientation(Ogre::Quaternion(Ogre::Degree(float(root->getTimer()->getMilliseconds()) / 10.0f), Ogre::Vector3::UNIT_Y));
 		root->renderOneFrame();
 		Ogre::WindowEventUtilities::messagePump();
 	}
